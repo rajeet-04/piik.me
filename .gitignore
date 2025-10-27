@@ -9,8 +9,5 @@ data/
 .vercel
 .firebase/
 
-# Don't push service account keys
+# Don't push service account keys (these are truly sensitive)
 *firebase-adminsdk*.json
-
-# Don't push Firebase config with credentials
-public/firebase-config.js
