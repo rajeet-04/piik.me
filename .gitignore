@@ -1,0 +1,13 @@
+node_modules/
+.env
+.env.local
+.env.production
+*.log
+.DS_Store
+data/
+*.json.bak
+.vercel
+.firebase/
+
+# Don't push service account keys
+*firebase-adminsdk*.json
