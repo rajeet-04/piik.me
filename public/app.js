@@ -11,6 +11,15 @@ let currentTheme = 'dark';
 let userLinks = [];
 let currentUser = null;
 
+// Debounce utility for real-time updates
+let analyticsUpdateTimeout = null;
+function debounceAnalyticsUpdate(callback, delay = 300) {
+    if (analyticsUpdateTimeout) {
+        clearTimeout(analyticsUpdateTimeout);
+    }
+    analyticsUpdateTimeout = setTimeout(callback, delay);
+}
+
 // DOM Elements
 const sidebar = document.getElementById('sidebar');
 const mobileMenuBtn = document.getElementById('mobileMenuBtn');
@@ -997,24 +1006,52 @@ async function setupAnalyticsRealtime(linkFilter) {
         window.analyticsUnsubscribe();
     }
     
-    // Set up real-time listener for clicks
+    // Set up real-time listener for analytics collection (ULTRA FAST!)
     if (linkFilter === 'all') {
-        // Listen to all links for current user
-        window.analyticsUnsubscribe = db.collection('links')
+        // First, get all shortCodes for current user
+        const linksSnapshot = await db.collection('links')
             .where('userId', '==', currentUser.uid)
+            .get();
+        
+        const shortCodes = linksSnapshot.docs.map(doc => doc.data().shortCode);
+        
+        if (shortCodes.length === 0) {
+            console.log('No links found for user');
+            return;
+        }
+        
+        // Listen to analytics collection for ALL user's links
+        // This will trigger INSTANTLY when any click happens!
+        window.analyticsUnsubscribe = db.collection('analytics')
+            .where('shortCode', 'in', shortCodes.slice(0, 10)) // Firestore 'in' limit is 10
             .onSnapshot((snapshot) => {
-                console.log('Real-time update: links changed');
-                loadAnalyticsData('all');
+                console.log('🚀 REAL-TIME UPDATE: New click detected! Updating in 100ms...');
+                // Ultra-fast debounce (100ms) for smooth updates
+                debounceAnalyticsUpdate(() => loadAnalyticsData('all'), 100);
             }, (error) => {
                 console.error('Real-time listener error:', error);
             });
+        
+        // If user has more than 10 links, set up additional listeners
+        if (shortCodes.length > 10) {
+            for (let i = 10; i < shortCodes.length; i += 10) {
+                const batch = shortCodes.slice(i, i + 10);
+                db.collection('analytics')
+                    .where('shortCode', 'in', batch)
+                    .onSnapshot((snapshot) => {
+                        console.log('🚀 REAL-TIME UPDATE: New click detected (batch)!');
+                        debounceAnalyticsUpdate(() => loadAnalyticsData('all'), 100);
+                    });
+            }
+        }
     } else {
-        // Listen to specific link
-        window.analyticsUnsubscribe = db.collection('links')
-            .doc(linkFilter)
-            .onSnapshot((doc) => {
-                console.log('Real-time update: link changed');
-                loadAnalyticsData(linkFilter);
+        // Listen to specific link's analytics - INSTANT UPDATES!
+        window.analyticsUnsubscribe = db.collection('analytics')
+            .where('shortCode', '==', linkFilter)
+            .onSnapshot((snapshot) => {
+                console.log('🚀 REAL-TIME UPDATE: Click on', linkFilter);
+                // Instant update with minimal debounce
+                debounceAnalyticsUpdate(() => loadAnalyticsData(linkFilter), 100);
             }, (error) => {
                 console.error('Real-time listener error:', error);
             });
