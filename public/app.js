@@ -526,7 +526,6 @@ async function loadLinks() {
         
         window.linksUnsubscribe = db.collection('links')
             .where('userId', '==', currentUser.uid)
-            .orderBy('createdAt', 'desc')
             .onSnapshot(async (snapshot) => {
                 userLinks = [];
                 
@@ -544,6 +543,13 @@ async function loadLinks() {
                         id: doc.id
                     });
                 }
+                
+                // Sort by createdAt in memory (newest first)
+                userLinks.sort((a, b) => {
+                    const dateA = a.createdAt?.toDate?.() || new Date(0);
+                    const dateB = b.createdAt?.toDate?.() || new Date(0);
+                    return dateB - dateA;
+                });
                 
                 if (userLinks.length > 0) {
                     displayLinks(userLinks);
