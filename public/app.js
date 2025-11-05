@@ -1249,17 +1249,9 @@ async function loadAnalyticsData(linkFilter) {
                     });
                 }
                 
-                // Process click history for timeline
+                // Process click history for timeline with dynamic granularity
                 if (analytics.clickHistory && Array.isArray(analytics.clickHistory)) {
-                    analytics.clickHistory.forEach(click => {
-                        allClickHistory.push(click);
-                        
-                        // Track clicks over time
-                        if (click.timestamp) {
-                            const date = new Date(click.timestamp).toLocaleDateString();
-                            clicksOverTime[date] = (clicksOverTime[date] || 0) + 1;
-                        }
-                    });
+                    allClickHistory.push(...analytics.clickHistory);
                 }
                 
                 // Track countries if available
@@ -1271,6 +1263,13 @@ async function loadAnalyticsData(linkFilter) {
             }
         }
         
+        // Sort click history by timestamp
+        allClickHistory.sort((a, b) => {
+            const timeA = new Date(a.timestamp).getTime();
+            const timeB = new Date(b.timestamp).getTime();
+            return timeA - timeB;
+        });
+        
         // Calculate unique visitors from click history (approximate by counting unique referrer+device combinations)
         const visitorFingerprints = new Set();
         allClickHistory.forEach(click => {
@@ -1280,7 +1279,7 @@ async function loadAnalyticsData(linkFilter) {
         const uniqueVisitorsCount = visitorFingerprints.size || totalClicks; // Fallback to total clicks if no history
         
         // Calculate average daily clicks
-        const daysCount = Object.keys(clicksOverTime).length || 1;
+        const daysCount = Math.max(1, Math.ceil((Date.now() - (allClickHistory[0] ? new Date(allClickHistory[0].timestamp).getTime() : Date.now())) / (1000 * 60 * 60 * 24)));
         const avgDaily = Math.round(totalClicks / daysCount);
         
         // Update analytics stats in UI
@@ -1289,10 +1288,8 @@ async function loadAnalyticsData(linkFilter) {
         document.getElementById('analyticsCountries').textContent = countries.size.toLocaleString();
         document.getElementById('analyticsAvgDaily').textContent = avgDaily.toLocaleString();
         
-        // Prepare data for charts
-        const clicksOverTimeArray = Object.entries(clicksOverTime)
-            .sort((a, b) => new Date(a[0]) - new Date(b[0]))
-            .map(([date, count]) => ({ date, count }));
+        // Process clicks over time with dynamic granularity
+        const clicksOverTimeData = processClicksOverTime(allClickHistory);
         
         const topReferrers = Object.entries(referrers)
             .sort((a, b) => b[1] - a[1])
@@ -1313,7 +1310,7 @@ async function loadAnalyticsData(linkFilter) {
         }));
         
         // Render charts and lists
-        renderClicksChart(clicksOverTimeArray);
+        renderClicksChart(clicksOverTimeData);
         renderReferrersChart(topReferrers);
         renderGeographicList(geographicList);
         renderDevicesList(devicesList);
@@ -1333,7 +1330,107 @@ async function loadAnalyticsData(linkFilter) {
     }
 }
 
-function renderClicksChart(data) {
+// Process clicks over time with dynamic granularity
+function processClicksOverTime(clickHistory) {
+    if (!clickHistory || clickHistory.length === 0) {
+        return { labels: [], data: [], granularity: 'none' };
+    }
+    
+    const now = Date.now();
+    const firstClick = new Date(clickHistory[0].timestamp).getTime();
+    const ageInMinutes = (now - firstClick) / (1000 * 60);
+    
+    let granularity;
+    let formatLabel;
+    let groupKey;
+    
+    if (ageInMinutes <= 60) {
+        // First hour: Show per minute
+        granularity = 'minute';
+        formatLabel = (date) => {
+            const d = new Date(date);
+            return d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+        };
+        groupKey = (timestamp) => {
+            const d = new Date(timestamp);
+            d.setSeconds(0, 0);
+            return d.getTime();
+        };
+    } else if (ageInMinutes <= 1440) {
+        // First 24 hours: Show per hour
+        granularity = 'hour';
+        formatLabel = (date) => {
+            const d = new Date(date);
+            return d.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+        };
+        groupKey = (timestamp) => {
+            const d = new Date(timestamp);
+            d.setMinutes(0, 0, 0);
+            return d.getTime();
+        };
+    } else {
+        // After 24 hours: Show per day
+        granularity = 'day';
+        formatLabel = (date) => {
+            const d = new Date(date);
+            return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        };
+        groupKey = (timestamp) => {
+            const d = new Date(timestamp);
+            d.setHours(0, 0, 0, 0);
+            return d.getTime();
+        };
+    }
+    
+    // Group clicks by time period
+    const grouped = {};
+    clickHistory.forEach(click => {
+        const key = groupKey(click.timestamp);
+        grouped[key] = (grouped[key] || 0) + 1;
+    });
+    
+    // Convert to array and sort
+    const sorted = Object.entries(grouped)
+        .map(([timestamp, count]) => ({
+            timestamp: parseInt(timestamp),
+            count
+        }))
+        .sort((a, b) => a.timestamp - b.timestamp);
+    
+    // Fill in missing time periods with 0
+    if (sorted.length > 0) {
+        const filled = [];
+        const start = sorted[0].timestamp;
+        const end = sorted[sorted.length - 1].timestamp;
+        
+        let interval;
+        if (granularity === 'minute') interval = 60 * 1000;
+        else if (granularity === 'hour') interval = 60 * 60 * 1000;
+        else interval = 24 * 60 * 60 * 1000;
+        
+        for (let t = start; t <= end; t += interval) {
+            const existing = sorted.find(s => s.timestamp === t);
+            filled.push({
+                label: formatLabel(t),
+                count: existing ? existing.count : 0
+            });
+        }
+        
+        return { 
+            labels: filled.map(f => f.label), 
+            data: filled.map(f => f.count),
+            granularity 
+        };
+    }
+    
+    return { 
+        labels: sorted.map(s => formatLabel(s.timestamp)), 
+        data: sorted.map(s => s.count),
+        granularity 
+    };
+}
+
+function renderClicksChart(chartData) {
     // Implement with Chart.js
     const ctx = document.getElementById('clicksChart');
     if (!ctx) return;
@@ -1343,14 +1440,16 @@ function renderClicksChart(data) {
         window.clicksChartInstance.destroy();
     }
     
+    const { labels, data, granularity } = chartData;
+    
     // Create new chart
     window.clicksChartInstance = new Chart(ctx, {
         type: 'line',
         data: {
-            labels: data.map(d => d.date),
+            labels: labels,
             datasets: [{
-                label: 'Clicks',
-                data: data.map(d => d.count),
+                label: `Clicks (${granularity === 'minute' ? 'per minute' : granularity === 'hour' ? 'per hour' : 'per day'})`,
+                data: data,
                 borderColor: '#8b5cf6',
                 backgroundColor: 'rgba(139, 92, 246, 0.1)',
                 tension: 0.4,
