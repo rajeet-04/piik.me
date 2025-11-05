@@ -181,10 +181,30 @@ function initializeEventListeners() {
     
     // Mobile menu toggle
     if (mobileMenuBtn) {
-        mobileMenuBtn.addEventListener('click', () => {
+        mobileMenuBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
             sidebar.classList.toggle('show');
         });
     }
+    
+    // Close sidebar when clicking outside on mobile
+    document.addEventListener('click', (e) => {
+        if (sidebar.classList.contains('show') && 
+            !sidebar.contains(e.target) && 
+            e.target !== mobileMenuBtn) {
+            sidebar.classList.remove('show');
+        }
+    });
+    
+    // Close sidebar when clicking on nav items on mobile
+    const navItems = document.querySelectorAll('.nav-item');
+    navItems.forEach(item => {
+        item.addEventListener('click', () => {
+            if (window.innerWidth <= 1024) {
+                sidebar.classList.remove('show');
+            }
+        });
+    });
     
     // User dropdown
     if (userMenuBtn) {
