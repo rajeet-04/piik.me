@@ -440,12 +440,17 @@ async function initializeAuth() {
                 currentUser = user;
                 showAuthenticatedUI();
                 
-                // Restore last visited page or default to home
-                const savedPage = localStorage.getItem('link360-current-page');
-                if (savedPage) {
-                    navigateToPage(savedPage);
-                } else {
+                // Get current page from URL instead of localStorage
+                const currentPath = window.location.pathname;
+                const currentPageFromUrl = currentPath.substring(1) || 'home';
+                
+                // Load data for the current page
+                if (currentPageFromUrl === 'home') {
                     loadLinks();
+                } else if (currentPageFromUrl === 'analytics') {
+                    loadAnalytics();
+                } else if (currentPageFromUrl === 'profile') {
+                    loadProfile();
                 }
             } else {
                 showLoginModal();
@@ -467,8 +472,9 @@ async function initializeAuth() {
                 
                 // Close login modal and restore page
                 loginModal.style.display = 'none';
-                const savedPage = localStorage.getItem('link360-current-page') || 'home';
-                navigateToPage(savedPage);
+                const currentPath = window.location.pathname;
+                const currentPageFromUrl = currentPath.substring(1) || 'home';
+                navigateToPage(currentPageFromUrl);
             }
         }).catch((error) => {
             console.error('Redirect error:', error);
@@ -1258,6 +1264,12 @@ async function loadAnalyticsData(linkFilter) {
     try {
         if (typeof firebase === 'undefined' || !firebase.firestore) {
             showToast('Firestore not available', 'error');
+            return;
+        }
+        
+        // Check if user is authenticated
+        if (!currentUser || !currentUser.uid) {
+            console.log('User not authenticated yet, skipping analytics load');
             return;
         }
         
