@@ -225,6 +225,15 @@ function navigateToPage(page, updateHistory = true) {
 // ================================
 
 function initializeEventListeners() {
+    // Logo click handler
+    const logoLink = document.getElementById('logoLink');
+    if (logoLink) {
+        logoLink.addEventListener('click', (e) => {
+            e.preventDefault();
+            navigateToPage('home');
+        });
+    }
+    
     // Theme switcher
     themeBtns.forEach(btn => {
         btn.addEventListener('click', () => setTheme(btn.dataset.theme));
