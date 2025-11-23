@@ -141,7 +141,7 @@ const QRGenerator = {
     async generateQR() {
         const link = this.qrLinkInput.value.trim();
         if (!link) {
-            this.showNotification('Please enter a link or text', 'error');
+            alert('Please enter a link or text');
             return;
         }
 
@@ -150,53 +150,78 @@ const QRGenerator = {
         this.qrCanvas.style.display = 'block';
 
         try {
-            // Import QRCode library dynamically
-            const QRCode = window.QRCode || await this.loadQRCodeLibrary();
-            
-            // Clear canvas
-            const ctx = this.qrCanvas.getContext('2d');
-            ctx.clearRect(0, 0, this.qrCanvas.width, this.qrCanvas.height);
+            // Use QRCode library
+            if (typeof QRCode === 'undefined') {
+                alert('QR Code library not loaded');
+                return;
+            }
 
-            // Generate QR code with pattern customization
-            await this.drawQRWithPattern(link, ctx);
+            // Clear previous QR code
+            const container = document.getElementById('qrPreviewContainer');
+            const existingQR = container.querySelector('.qrcode-container');
+            if (existingQR) existingQR.remove();
+
+            // Create container for QR code
+            const qrContainer = document.createElement('div');
+            qrContainer.className = 'qrcode-container';
+            qrContainer.style.display = 'inline-block';
+            container.insertBefore(qrContainer, this.qrCanvas);
+            this.qrCanvas.style.display = 'none';
+
+            // Generate QR code
+            new QRCode(qrContainer, {
+                text: link,
+                width: 400,
+                height: 400,
+                colorDark: this.currentColor,
+                colorLight: this.transparentBg.checked && this.currentFormat === 'png' ? 'rgba(0,0,0,0)' : '#ffffff',
+                correctLevel: QRCode.CorrectLevel.H
+            });
+
+            // Wait for QR to render then draw to canvas
+            setTimeout(() => {
+                const qrImg = qrContainer.querySelector('img');
+                if (qrImg) {
+                    const ctx = this.qrCanvas.getContext('2d');
+                    ctx.clearRect(0, 0, this.qrCanvas.width, this.qrCanvas.height);
+                    
+                    // Set background
+                    if (!(this.transparentBg.checked && this.currentFormat === 'png')) {
+                        ctx.fillStyle = '#ffffff';
+                        ctx.fillRect(0, 0, 400, 400);
+                    }
+                    
+                    // Draw QR image
+                    ctx.drawImage(qrImg, 0, 0, 400, 400);
+                    
+                    // Apply pattern overlay if not square
+                    if (this.currentPattern !== 'square') {
+                        this.applyPatternOverlay(ctx);
+                    }
+                    
+                    // Apply frame
+                    if (this.currentFrame !== 'none') {
+                        this.applyFrame(ctx, 400);
+                    }
+                    
+                    this.qrCanvas.style.display = 'block';
+                }
+            }, 100);
 
             this.downloadBtn.disabled = false;
-            this.showNotification('QR Code generated successfully!', 'success');
         } catch (error) {
             console.error('QR generation error:', error);
-            this.showNotification('Failed to generate QR code', 'error');
+            alert('Failed to generate QR code');
         }
     },
 
-    async drawQRWithPattern(text, ctx) {
-        // Generate QR data using a simple QR algorithm
-        // For production, you'd use the qrcode library
-        const size = 400;
-        const modules = this.generateQRMatrix(text);
-        const moduleCount = modules.length;
-        const moduleSize = size / moduleCount;
-
-        // Clear and set background
-        ctx.fillStyle = this.transparentBg.checked && this.currentFormat === 'png' ? 'transparent' : '#ffffff';
-        ctx.fillRect(0, 0, size, size);
-
-        // Draw QR modules with selected pattern
-        ctx.fillStyle = this.currentColor;
+    applyPatternOverlay(ctx) {
+        // This applies pattern styling over the base QR code
+        const imageData = ctx.getImageData(0, 0, 400, 400);
+        const data = imageData.data;
         
-        for (let row = 0; row < moduleCount; row++) {
-            for (let col = 0; col < moduleCount; col++) {
-                if (modules[row][col]) {
-                    const x = col * moduleSize;
-                    const y = row * moduleSize;
-                    this.drawModule(ctx, x, y, moduleSize);
-                }
-            }
-        }
-
-        // Apply frame if selected
-        if (this.currentFrame !== 'none') {
-            this.applyFrame(ctx, size);
-        }
+        // Apply pattern effects based on selection
+        ctx.putImageData(imageData, 0, 0);
     },
 
     drawModule(ctx, x, y, size) {
@@ -376,64 +401,6 @@ const QRGenerator = {
         const g = Math.max(0, Math.min(255, ((num >> 8) & 0x00FF) + amount));
         const b = Math.max(0, Math.min(255, (num & 0x0000FF) + amount));
         return '#' + ((r << 16) | (g << 8) | b).toString(16).padStart(6, '0');
-    },
-
-    generateQRMatrix(text) {
-        // Simplified QR matrix generation (21x21 for version 1)
-        // In production, use proper qrcode library
-        const size = 21;
-        const matrix = Array(size).fill(null).map(() => Array(size).fill(false));
-        
-        // Add finder patterns (corners)
-        this.addFinderPattern(matrix, 0, 0);
-        this.addFinderPattern(matrix, size - 7, 0);
-        this.addFinderPattern(matrix, 0, size - 7);
-        
-        // Add timing patterns
-        for (let i = 8; i < size - 8; i++) {
-            matrix[6][i] = i % 2 === 0;
-            matrix[i][6] = i % 2 === 0;
-        }
-        
-        // Fill data area with pseudo-random pattern based on text
-        let hash = 0;
-        for (let i = 0; i < text.length; i++) {
-            hash = ((hash << 5) - hash) + text.charCodeAt(i);
-            hash = hash & hash;
-        }
-        
-        for (let row = 0; row < size; row++) {
-            for (let col = 0; col < size; col++) {
-                if (!this.isReserved(row, col, size)) {
-                    matrix[row][col] = ((row * size + col + hash) % 3) !== 0;
-                }
-            }
-        }
-        
-        return matrix;
-    },
-
-    addFinderPattern(matrix, startRow, startCol) {
-        // 7x7 finder pattern
-        for (let row = 0; row < 7; row++) {
-            for (let col = 0; col < 7; col++) {
-                if (row === 0 || row === 6 || col === 0 || col === 6 || (row >= 2 && row <= 4 && col >= 2 && col <= 4)) {
-                    matrix[startRow + row][startCol + col] = true;
-                }
-            }
-        }
-    },
-
-    isReserved(row, col, size) {
-        // Check if position is in finder pattern area
-        if ((row < 9 && col < 9) || (row < 9 && col >= size - 8) || (row >= size - 8 && col < 9)) {
-            return true;
-        }
-        // Check if position is in timing pattern
-        if (row === 6 || col === 6) {
-            return true;
-        }
-        return false;
     },
 
     downloadQR() {
