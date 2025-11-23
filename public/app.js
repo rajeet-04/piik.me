@@ -176,6 +176,8 @@ function navigateToPage(page, updateHistory = true) {
         page = 'home';
     }
     
+    console.log('Navigating to page:', page);
+    
     currentPage = page;
     
     // Update browser URL without reloading
@@ -193,7 +195,11 @@ function navigateToPage(page, updateHistory = true) {
     
     // Update pages
     pages.forEach(p => {
-        p.style.display = p.id === `${page}Page` ? 'block' : 'none';
+        const shouldShow = p.id === `${page}Page`;
+        p.style.display = shouldShow ? 'block' : 'none';
+        if (shouldShow) {
+            console.log('Showing page:', p.id);
+        }
     });
     
     // Update title
