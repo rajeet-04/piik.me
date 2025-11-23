@@ -493,9 +493,12 @@ async function initializeAuth() {
     // Check if user is authenticated
     const token = await getAuthToken();
     
+    console.log('initializeAuth - token exists:', !!token);
+    
     if (token) {
         try {
             const user = await getCurrentUser();
+            console.log('initializeAuth - user:', user ? user.email : 'null');
             if (user) {
                 currentUser = user;
                 showAuthenticatedUI();
@@ -503,12 +506,18 @@ async function initializeAuth() {
                 // Show app, hide landing
                 const landingPage = document.getElementById('landingPage');
                 const appContainer = document.getElementById('app');
+                console.log('initializeAuth - appContainer:', !!appContainer, 'landingPage:', !!landingPage);
                 if (landingPage) landingPage.style.display = 'none';
-                if (appContainer) appContainer.style.display = 'flex';
+                if (appContainer) {
+                    appContainer.style.display = 'flex';
+                    console.log('App container display set to flex');
+                }
                 
                 // Get current page from URL instead of localStorage
                 const currentPath = window.location.pathname;
                 const currentPageFromUrl = currentPath.substring(1) || 'home';
+                
+                console.log('Current path:', currentPath, 'Page:', currentPageFromUrl);
                 
                 // Navigate to the current page
                 navigateToPage(currentPageFromUrl, false);
