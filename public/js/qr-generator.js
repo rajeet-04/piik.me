@@ -418,13 +418,16 @@ const QRGenerator = {
     },
 
     drawQRToCanvas(ctx, qrImg) {
-        // Draw the QR code image
-        ctx.drawImage(qrImg, 0, 0, 400, 400);
+        // Clear canvas first
+        ctx.clearRect(0, 0, 400, 400);
         
-        // Apply pattern overlay if not square (future enhancement)
-        // if (this.currentPattern !== 'square') {
-        //     this.applyPatternOverlay(ctx);
-        // }
+        // If square pattern, just draw the image directly
+        if (this.currentPattern === 'square') {
+            ctx.drawImage(qrImg, 0, 0, 400, 400);
+        } else {
+            // For custom patterns, redraw with pattern styles
+            this.applyPatternToQR(ctx, qrImg);
+        }
         
         // Apply frame if selected
         if (this.currentFrame && this.currentFrame !== 'none') {
@@ -433,6 +436,41 @@ const QRGenerator = {
         
         // Update floating preview
         this.updateFloatingPreview();
+    },
+
+    applyPatternToQR(ctx, qrImg) {
+        // Create temporary canvas to analyze QR code
+        const tempCanvas = document.createElement('canvas');
+        tempCanvas.width = 400;
+        tempCanvas.height = 400;
+        const tempCtx = tempCanvas.getContext('2d');
+        tempCtx.drawImage(qrImg, 0, 0, 400, 400);
+        
+        // Get image data to detect QR modules
+        const imageData = tempCtx.getImageData(0, 0, 400, 400);
+        const data = imageData.data;
+        
+        // QR code is typically ~33 modules (varies by version)
+        // We'll sample the grid to detect module positions
+        const moduleSize = 400 / 33; // Approximate module size
+        
+        ctx.fillStyle = this.currentColor;
+        
+        // Draw with pattern
+        for (let row = 0; row < 33; row++) {
+            for (let col = 0; col < 33; col++) {
+                const x = col * moduleSize + moduleSize / 2;
+                const y = row * moduleSize + moduleSize / 2;
+                const pixelIndex = (Math.floor(y) * 400 + Math.floor(x)) * 4;
+                
+                // Check if this module is dark (QR code module)
+                const isDark = data[pixelIndex] < 128;
+                
+                if (isDark) {
+                    this.drawModule(ctx, col * moduleSize, row * moduleSize, moduleSize);
+                }
+            }
+        }
     },
 
     applyPatternOverlay(ctx) {
@@ -543,6 +581,15 @@ const QRGenerator = {
         ctx.quadraticCurveTo(x, y, x + radius, y);
         ctx.closePath();
         ctx.fill();
+    },
+
+    adjustColor(color, amount) {
+        // Convert hex to RGB, adjust brightness, convert back
+        const num = parseInt(color.replace('#', ''), 16);
+        const r = Math.min(255, Math.max(0, (num >> 16) + amount));
+        const g = Math.min(255, Math.max(0, ((num >> 8) & 0x00FF) + amount));
+        const b = Math.min(255, Math.max(0, (num & 0x0000FF) + amount));
+        return '#' + ((r << 16) | (g << 8) | b).toString(16).padStart(6, '0');
     },
 
     drawStar(ctx, cx, cy, spikes, outerRadius, innerRadius) {
