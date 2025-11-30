@@ -894,7 +894,7 @@ function displayLinks(links, filter) {
             </div>
             <div class="link-content">
                 <div class="link-url">
-                    <a href="${link.shortUrl}" class="link-short" target="_blank">${link.shortUrl}</a>
+                    <a href="${link.shortUrl}" class="link-short" target="_blank">${link.shortUrl.replace('https://', '').replace('http://', '')}</a>
                     <button class="btn-icon" onclick="copyLink('${link.shortUrl}')" title="Copy">
                         <i class="fas fa-copy"></i>
                     </button>
@@ -1125,7 +1125,7 @@ function displaySearchSuggestions(results) {
                             <i class="fas fa-link"></i>
                         </div>
                         <div class="search-suggestion-content">
-                            <div class="search-suggestion-title">${escapeHtml(link.shortUrl)}</div>
+                            <div class="search-suggestion-title">${escapeHtml(link.shortUrl.replace('https://', '').replace('http://', ''))}</div>
                             <div class="search-suggestion-subtitle">${escapeHtml(truncateText(link.originalUrl, 50))}</div>
                         </div>
                         <div class="search-suggestion-meta">${link.clicks || 0} clicks</div>
@@ -1249,7 +1249,7 @@ function showQRCode(shortUrl, shortCode) {
             </div>
             <div class="modal-body" style="text-align: center;">
                 <div id="qr-${shortCode}" style="display: inline-block; padding: 20px; background: white; border-radius: 12px;"></div>
-                <p style="margin-top: 16px; color: var(--text-secondary); font-size: 14px;">${shortUrl}</p>
+                <p style="margin-top: 16px; color: var(--text-secondary); font-size: 14px;">${shortUrl.replace('https://', '').replace('http://', '')}</p>
             </div>
             <div class="modal-footer" style="display: flex; gap: 12px; justify-content: flex-end;">
                 <button class="btn btn-secondary" onclick="customizeQR('${shortUrl}')">
@@ -1495,7 +1495,7 @@ async function loadAnalytics() {
         // Populate link selector
         if (analyticsLinkSelect && links.length > 0) {
             analyticsLinkSelect.innerHTML = '<option value="all">All Links</option>' +
-                links.map(link => `<option value="${link.shortCode}">${link.shortUrl}</option>`).join('');
+                links.map(link => `<option value="${link.shortCode}">${link.shortUrl.replace('https://', '').replace('http://', '')}</option>`).join('');
             
             // Remove previous listener if exists
             const newSelect = analyticsLinkSelect.cloneNode(true);
