@@ -97,63 +97,89 @@ function switchGeoView(view) {
 // Initialize the 3D globe
 async function initializeGlobe() {
     const container = document.getElementById('globeViz');
-    if (!container) return;
+    if (!container) {
+        console.error('Globe container not found');
+        return;
+    }
     
     // Clear container
     container.innerHTML = '';
     
-    // Load countries GeoJSON for hexagon patterns
-    const countriesData = await fetch('/countries.geojson').then(res => res.json());
-    
-    // Create globe instance with hexagonal land patterns
-    globeInstance = Globe()
-        (container)
-        .globeMaterial(new THREE.MeshPhongMaterial({
-            color: '#e5e5e5',
-            transparent: false,
-            opacity: 1
-        }))
-        .backgroundColor('rgba(0,0,0,0)')
-        .showAtmosphere(true)
-        .atmosphereColor('rgba(100, 200, 255, 0.3)')
-        .atmosphereAltitude(0.15)
-        .hexPolygonsData(countriesData.features)
-        .hexPolygonResolution(3)
-        .hexPolygonMargin(0.3)
-        .hexPolygonUseDots(false)
-        .hexPolygonColor(() => `rgba(16, 185, 129, ${Math.random() * 0.2 + 0.7})`)
-        .hexPolygonAltitude(0.001)
-        .pointsData([])
-        .pointAltitude(0.01)
-        .pointColor(() => '#eab308')
-        .pointRadius(0.5)
-        .pointsMerge(true)
-        .pointLabel(d => `
-            <div style="background: white; padding: 12px 16px; border-radius: 10px; color: #1a1a1a; font-family: 'Inter', sans-serif; box-shadow: 0 4px 20px rgba(0,0,0,0.15); border: 1px solid #e5e7eb;">
-                <div style="font-size: 14px; font-weight: 600; margin-bottom: 4px; color: #111;">${d.city}, ${d.region}</div>
-                <div style="font-size: 12px; color: #6b7280; margin-bottom: 6px;">${d.country}</div>
-                <div style="font-size: 15px; font-weight: 700; color: #f59e0b;">${d.clicks} visit${d.clicks > 1 ? 's' : ''}</div>
+    try {
+        // Load countries GeoJSON for hexagon patterns
+        console.log('Loading countries.geojson...');
+        const response = await fetch('/countries.geojson');
+        if (!response.ok) {
+            throw new Error(`Failed to load countries.geojson: ${response.status}`);
+        }
+        const countriesData = await response.json();
+        console.log('Countries data loaded successfully');
+        
+        // Create globe instance with hexagonal land patterns
+        console.log('Initializing Globe.gl...');
+        globeInstance = Globe()
+            (container)
+            .width(container.clientWidth)
+            .height(650)
+            .globeMaterial(new THREE.MeshPhongMaterial({
+                color: '#dadada',
+                transparent: false,
+                opacity: 1
+            }))
+            .backgroundColor('rgba(0,0,0,0)')
+            .showAtmosphere(true)
+            .atmosphereColor('rgba(100, 180, 255, 0.5)')
+            .atmosphereAltitude(0.15)
+            .hexPolygonsData(countriesData.features)
+            .hexPolygonResolution(3)
+            .hexPolygonMargin(0.3)
+            .hexPolygonUseDots(false)
+            .hexPolygonColor(() => `rgba(16, 185, 129, ${Math.random() * 0.2 + 0.75})`)
+            .hexPolygonAltitude(0.001)
+            .pointsData([])
+            .pointAltitude(0.01)
+            .pointColor(() => '#eab308')
+            .pointRadius(0.5)
+            .pointsMerge(true)
+            .pointLabel(d => `
+                <div style="background: white; padding: 12px 16px; border-radius: 10px; color: #1a1a1a; font-family: 'Inter', sans-serif; box-shadow: 0 4px 20px rgba(0,0,0,0.15); border: 1px solid #e5e7eb;">
+                    <div style="font-size: 14px; font-weight: 600; margin-bottom: 4px; color: #111;">${d.city}, ${d.region}</div>
+                    <div style="font-size: 12px; color: #6b7280; margin-bottom: 6px;">${d.country}</div>
+                    <div style="font-size: 15px; font-weight: 700; color: #f59e0b;">${d.clicks} visit${d.clicks > 1 ? 's' : ''}</div>
+                </div>
+            `);
+        
+        // Configure controls for smooth interaction
+        const controls = globeInstance.controls();
+        controls.autoRotate = true;
+        controls.autoRotateSpeed = 0.3;
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.1;
+        controls.rotateSpeed = 0.5;
+        controls.minDistance = 180;
+        controls.maxDistance = 500;
+        
+        // Set initial view - centered
+        globeInstance.pointOfView({ 
+            lat: 20, 
+            lng: 0, 
+            altitude: 2.2 
+        }, 0);
+        
+        console.log('Globe initialized successfully');
+        
+        // Update with actual data
+        await updateGlobeData();
+    } catch (error) {
+        console.error('Error initializing globe:', error);
+        container.innerHTML = `<div style="display: flex; align-items: center; justify-content: center; height: 650px; color: #666;">
+            <div style="text-align: center;">
+                <i class="fas fa-exclamation-triangle" style="font-size: 48px; margin-bottom: 16px;"></i>
+                <p>Failed to load globe visualization</p>
+                <p style="font-size: 14px; color: #999;">${error.message}</p>
             </div>
-        `);
-    
-    // Configure controls for smooth interaction
-    const controls = globeInstance.controls();
-    controls.autoRotate = false;
-    controls.enableDamping = true;
-    controls.dampingFactor = 0.1;
-    controls.rotateSpeed = 0.5;
-    controls.minDistance = 180;
-    controls.maxDistance = 500;
-    
-    // Set initial view - centered
-    globeInstance.pointOfView({ 
-        lat: 0, 
-        lng: 0, 
-        altitude: 2.2 
-    }, 0);
-    
-    // Update with actual data
-    await updateGlobeData();
+        </div>`;
+    }
 }
 
 // Update globe with click data
