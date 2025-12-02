@@ -4,7 +4,6 @@
 
 let globeInstance = null;
 let globeData = [];
-let isRotating = false;
 let currentGeoView = 'details';
 
 // Geocoding cache for city coordinates
@@ -132,7 +131,6 @@ async function initializeGlobe() {
     // Configure controls for smooth interaction
     const controls = globeInstance.controls();
     controls.autoRotate = false;
-    controls.autoRotateSpeed = 0.5;
     controls.enableDamping = true;
     controls.dampingFactor = 0.1;
     controls.rotateSpeed = 0.5;
@@ -141,7 +139,7 @@ async function initializeGlobe() {
     
     // Set initial view - centered and zoomed appropriately
     globeInstance.pointOfView({ 
-        lat: 20, 
+        lat: 0, 
         lng: 0, 
         altitude: 2.2 
     }, 0);
@@ -203,11 +201,6 @@ async function updateGlobeData() {
     
     // Update locations list
     updateGlobeLocationsList(pointsData);
-    
-    // Auto-rotate
-    if (!isRotating) {
-        startGlobeRotation();
-    }
 }
 
 // Update the locations list below the globe
@@ -264,52 +257,10 @@ function resetGlobeView() {
     if (!globeInstance) return;
     
     globeInstance.pointOfView({
-        lat: 20,
+        lat: 0,
         lng: 0,
         altitude: 2.2
     }, 1200);
-}
-
-// Toggle auto-rotation
-function toggleGlobeRotation() {
-    if (isRotating) {
-        stopGlobeRotation();
-    } else {
-        startGlobeRotation();
-    }
-}
-
-let rotationAnimation = null;
-
-function startGlobeRotation() {
-    if (!globeInstance) return;
-    
-    isRotating = true;
-    const rotationIcon = document.getElementById('rotationIcon');
-    const rotationText = document.getElementById('rotationText');
-    
-    if (rotationIcon) rotationIcon.classList.add('fa-spin');
-    if (rotationText) rotationText.textContent = 'Stop Rotation';
-    
-    // Use built-in auto-rotate for smoother performance
-    const controls = globeInstance.controls();
-    controls.autoRotate = true;
-    controls.autoRotateSpeed = 0.8;
-}
-
-function stopGlobeRotation() {
-    if (!globeInstance) return;
-    
-    isRotating = false;
-    const rotationIcon = document.getElementById('rotationIcon');
-    const rotationText = document.getElementById('rotationText');
-    
-    if (rotationIcon) rotationIcon.classList.remove('fa-spin');
-    if (rotationText) rotationText.textContent = 'Auto-Rotate';
-    
-    // Stop built-in auto-rotate
-    const controls = globeInstance.controls();
-    controls.autoRotate = false;
 }
 
 // Initialize when window loads
