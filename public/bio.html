@@ -348,10 +348,14 @@
                 const bioLinkDoc = bioLinksSnapshot.docs[0];
                 const bioLink = bioLinkDoc.data();
 
-                // Track view
-                await db.collection('bioLinks').doc(bioLinkDoc.id).update({
-                    views: firebase.firestore.FieldValue.increment(1)
-                });
+                // Track view (ignore permission errors for public viewing)
+                try {
+                    await db.collection('bioLinks').doc(bioLinkDoc.id).update({
+                        views: firebase.firestore.FieldValue.increment(1)
+                    });
+                } catch (viewError) {
+                    console.log('Could not track view (permissions):', viewError.message);
+                }
 
                 // Update meta tags
                 document.title = bioLink.name;
