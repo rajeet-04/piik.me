@@ -79,42 +79,23 @@
             background-size: 20px 20px;
         }
 
-        .bio-logo {
+        .bio-slug {
             position: fixed;
             top: 20px;
             left: 20px;
-            display: flex;
-            flex-direction: column;
-            align-items: flex-start;
-            gap: 4px;
             z-index: 1000;
-            text-decoration: none;
-        }
-
-        .bio-logo-brand {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .bio-logo img {
-            width: 32px;
-            height: 32px;
-        }
-
-        .bio-logo-text {
-            font-size: 18px;
-            font-weight: 700;
+            font-size: 14px;
+            font-weight: 500;
             color: rgba(255, 255, 255, 0.9);
             text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
         }
 
-        .bio-slug {
-            font-size: 14px;
-            font-weight: 500;
-            color: rgba(255, 255, 255, 0.7);
-            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
-            margin-left: 40px;
+        .bio-card-logo {
+            position: absolute;
+            top: 16px;
+            left: 16px;
+            width: 28px;
+            height: 28px;
         }
 
         .bio-container {
@@ -124,6 +105,7 @@
             backdrop-filter: blur(10px);
             border-radius: 24px;
             padding: 48px 32px;
+            position: relative;
             box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
             animation: fadeIn 0.6s ease-out;
         }
@@ -356,13 +338,7 @@
     </style>
 </head>
 <body>
-    <div class="bio-logo">
-        <a href="/" class="bio-logo-brand">
-            <img src="/assets/images/logo.png" alt="piik.me">
-            <span class="bio-logo-text">piik.me</span>
-        </a>
-        <span class="bio-slug" id="bioSlugDisplay"></span>
-    </div>
+    <span class="bio-slug" id="bioSlugDisplay"></span>
     <div class="background-blur" id="backgroundBlur"></div>
     <div class="loading" id="loading">
         <img src="/assets/images/logo.png" alt="Loading" class="loading-logo">
@@ -479,7 +455,8 @@
             const bioContent = document.getElementById('bioContent');
             const themeColor = bioLink.themeColor || '#06b6d4';
 
-            let html = '<div class="bio-header">';
+            let html = '<img src="/assets/images/logo.png" alt="piik.me" class="bio-card-logo">';
+            html += '<div class="bio-header">';
 
             // Profile picture
             if (bioLink.profilePicture) {
