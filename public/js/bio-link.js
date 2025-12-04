@@ -668,6 +668,32 @@ function removeBioProfilePicture() {
 
 let editorBioLinkItems = [];
 let currentEditorBioLink = null;
+let autoSaveTimeout = null;
+let isSaving = false;
+
+// Auto-save function
+function triggerAutoSave() {
+    // Clear existing timeout
+    if (autoSaveTimeout) {
+        clearTimeout(autoSaveTimeout);
+    }
+    
+    // Show saving indicator
+    const saveBtn = document.querySelector('#bioLinkEditor button.btn-primary');
+    if (saveBtn && !isSaving) {
+        const originalText = saveBtn.innerHTML;
+        saveBtn.innerHTML = '<i class="fas fa-circle" style="font-size: 8px; animation: pulse 1s infinite;"></i> Saving...';
+        
+        // Auto-save after 1.5 seconds of no changes
+        autoSaveTimeout = setTimeout(async () => {
+            await saveEditorBioLink(true); // Pass true for auto-save
+            saveBtn.innerHTML = '<i class="fas fa-check"></i> Saved';
+            setTimeout(() => {
+                saveBtn.innerHTML = originalText;
+            }, 2000);
+        }, 1500);
+    }
+}
 
 // Load bio link into editor
 function loadBioLinkIntoEditor(bioLink) {
@@ -728,10 +754,21 @@ function setupLivePreviewListeners() {
         const el = document.getElementById(id);
         if (el) {
             el.removeEventListener('input', updateLivePreview); // Remove old listeners
-            el.addEventListener('input', updateLivePreview);
+            el.addEventListener('input', () => {
+                updateLivePreview();
+                triggerAutoSave(); // Trigger auto-save on change
+            });
             console.log('Added listener to', id);
         }
     });
+    
+    // Add listener for background style
+    const bgStyleEl = document.getElementById('editorBackgroundStyle');
+    if (bgStyleEl) {
+        bgStyleEl.addEventListener('change', () => {
+            triggerAutoSave();
+        });
+    }
     
     livePreviewListenersSetup = true;
 }
@@ -833,6 +870,7 @@ function setupDragAndDrop() {
                 
                 // Re-render
                 renderEditorBioLinkItems();
+                triggerAutoSave(); // Auto-save when reordered
             }
         });
     });
@@ -849,6 +887,7 @@ function updateEditorBioLinkItem(index, field, value) {
     if (editorBioLinkItems[index]) {
         editorBioLinkItems[index][field] = value;
         updateLivePreview();
+        triggerAutoSave(); // Auto-save when link item changes
     }
 }
 
@@ -856,6 +895,7 @@ function updateEditorBioLinkItem(index, field, value) {
 function removeEditorBioLinkItem(index) {
     editorBioLinkItems.splice(index, 1);
     renderEditorBioLinkItems();
+    triggerAutoSave(); // Auto-save when link is removed
 }
 
 // Update live preview
@@ -940,11 +980,15 @@ function updateLivePreview() {
 }
 
 // Save editor bio link
-async function saveEditorBioLink() {
+async function saveEditorBioLink(isAutoSave = false) {
+    if (isSaving) return; // Prevent concurrent saves
+    
     try {
+        isSaving = true;
         const user = firebase.auth().currentUser;
         if (!user) {
-            showToast('Please log in to save changes', 'error');
+            if (!isAutoSave) showToast('Please log in to save changes', 'error');
+            isSaving = false;
             return;
         }
         
@@ -953,12 +997,14 @@ async function saveEditorBioLink() {
         const description = document.getElementById('editorBioDescription').value.trim();
         
         if (!name) {
-            showToast('Please enter a name', 'error');
+            if (!isAutoSave) showToast('Please enter a name', 'error');
+            isSaving = false;
             return;
         }
         
         if (!slug || !/^[a-zA-Z0-9-_]+$/.test(slug)) {
-            showToast('Please enter a valid URL slug', 'error');
+            if (!isAutoSave) showToast('Please enter a valid URL slug', 'error');
+            isSaving = false;
             return;
         }
         
@@ -967,7 +1013,8 @@ async function saveEditorBioLink() {
         if (currentEditorBioLink.slug !== slug) {
             const existingSlug = await db.collection('bioLinks').where('slug', '==', slug).get();
             if (!existingSlug.empty) {
-                showToast('This URL slug is already taken', 'error');
+                if (!isAutoSave) showToast('This URL slug is already taken', 'error');
+                isSaving = false;
                 return;
             }
         }
@@ -994,12 +1041,20 @@ async function saveEditorBioLink() {
         };
         
         await db.collection('bioLinks').doc(currentEditorBioLink.id).update(bioLinkData);
-        showToast('Bio link updated successfully!', 'success');
-        loadBioLinks();
+        
+        if (!isAutoSave) {
+            showToast('Bio link updated successfully!', 'success');
+            loadBioLinks();
+        }
+        
+        isSaving = false;
         
     } catch (error) {
         console.error('Error saving bio link:', error);
-        showToast('Failed to save: ' + (error.message || 'Unknown error'), 'error');
+        if (!isAutoSave) {
+            showToast('Failed to save: ' + (error.message || 'Unknown error'), 'error');
+        }
+        isSaving = false;
     }
 }
 
@@ -1065,6 +1120,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 document.getElementById('editorProfilePicture').value = downloadURL;
                 showEditorProfilePicturePreview(downloadURL, file.name);
                 updateLivePreview();
+                triggerAutoSave(); // Auto-save after picture upload
                 
                 uploadBtn.innerHTML = originalText;
                 uploadBtn.disabled = false;
@@ -1100,4 +1156,5 @@ function removeEditorProfilePicture() {
     document.getElementById('editorProfilePictureFile').value = '';
     document.getElementById('editorProfilePicturePreview').style.display = 'none';
     updateLivePreview();
+    triggerAutoSave(); // Auto-save when picture is removed
 }
