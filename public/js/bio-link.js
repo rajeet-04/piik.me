@@ -587,12 +587,20 @@ document.addEventListener('DOMContentLoaded', () => {
                 uploadBtn.disabled = true;
 
                 console.log('Starting upload for:', file.name, 'Size:', file.size, 'bytes');
+                console.log('User ID:', user.uid);
+
+                // Check if Firebase Storage is properly initialized
+                if (!firebase.storage) {
+                    throw new Error('Firebase Storage not initialized');
+                }
 
                 // Create upload promise with timeout
                 const uploadPromise = new Promise(async (resolve, reject) => {
                     try {
                         // Upload to Firebase Storage
                         const storage = firebase.storage();
+                        console.log('Storage bucket:', storage.app.options.storageBucket);
+                        
                         const storageRef = storage.ref();
                         const fileExtension = file.name.split('.').pop();
                         const fileName = `bio-profiles/${user.uid}/${Date.now()}.${fileExtension}`;
@@ -608,9 +616,12 @@ document.addEventListener('DOMContentLoaded', () => {
                             (snapshot) => {
                                 const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
                                 console.log('Upload progress:', progress.toFixed(0) + '%');
+                                uploadBtn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> ${progress.toFixed(0)}%`;
                             },
                             (error) => {
                                 console.error('Upload error:', error);
+                                console.error('Error code:', error.code);
+                                console.error('Error message:', error.message);
                                 reject(error);
                             },
                             async () => {
@@ -626,9 +637,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 });
 
-                // Set timeout for upload (30 seconds)
+                // Set timeout for upload (60 seconds)
                 const timeoutPromise = new Promise((_, reject) => {
-                    setTimeout(() => reject(new Error('Upload timeout - please check your connection')), 30000);
+                    setTimeout(() => reject(new Error('Upload timeout - please check Firebase Storage rules')), 60000);
                 });
 
                 // Race between upload and timeout
