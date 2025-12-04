@@ -123,7 +123,7 @@ function getBaseUrl(req) {
 
 // Create short link (requires authentication)
 app.post('/api/shorten', verifyToken, async (req, res) => {
-  const { url, utmParams, customShortCode } = req.body;
+  const { url, utmParams, customShortCode, username } = req.body;
   const userId = req.user.uid;
   
   if (!url) {
@@ -155,9 +155,16 @@ app.post('/api/shorten', verifyToken, async (req, res) => {
       return res.status(400).json({ error: 'Custom short code can only contain letters, numbers, hyphens, and underscores' });
     }
     
+    // If username is provided, create username/slug format
+    if (username) {
+      shortCode = `${username}/${trimmedCode}`;
+    } else {
+      shortCode = trimmedCode;
+    }
+    
     // Check if already exists in Firestore
     try {
-      const existingDoc = await db.collection(COLLECTIONS.LINKS).doc(trimmedCode).get();
+      const existingDoc = await db.collection(COLLECTIONS.LINKS).doc(shortCode).get();
       if (existingDoc.exists) {
         return res.status(409).json({ error: 'This custom short code is already taken' });
       }
@@ -166,11 +173,9 @@ app.post('/api/shorten', verifyToken, async (req, res) => {
     }
     
     // Check in-memory storage as fallback
-    if (links.has(trimmedCode)) {
+    if (links.has(shortCode)) {
       return res.status(409).json({ error: 'This custom short code is already taken' });
     }
-    
-    shortCode = trimmedCode;
   } else {
     // Generate random short code
     shortCode = generateShortCode();
@@ -505,6 +510,200 @@ app.head('/:shortCode', async (req, res) => {
   }
   
   res.status(200).end();
+});
+
+// Redirect username/slug format links (e.g., /xthxr/my-link)
+app.get('/:username/:slug', async (req, res) => {
+  const { username, slug } = req.params;
+  const shortCode = `${username}/${slug}`;
+  
+  let link = null;
+  
+  try {
+    // Try Firestore first
+    const linkDoc = await db.collection(COLLECTIONS.LINKS).doc(shortCode).get();
+    if (linkDoc.exists) {
+      link = linkDoc.data();
+    }
+  } catch (error) {
+    console.error('Error reading link from Firestore:', error);
+  }
+  
+  // Fallback to in-memory
+  if (!link) {
+    link = links.get(shortCode);
+  }
+  
+  if (!link) {
+    return res.status(404).send('Link not found');
+  }
+
+  // Track click analytics
+  const userAgent = req.headers['user-agent'] || 'Unknown';
+  const httpReferrer = req.headers['referer'] || req.headers['referrer'] || '';
+  
+  // Enhanced referrer detection
+  let referrerSource = 'Direct';
+  
+  // Check URL query parameters first (most reliable - from share menu)
+  const utmSource = req.query.utm_source;
+  
+  if (utmSource) {
+    // Use UTM source from share menu
+    referrerSource = utmSource.charAt(0).toUpperCase() + utmSource.slice(1);
+  } else if (httpReferrer) {
+    // Parse HTTP referrer header
+    try {
+      const refUrl = new URL(httpReferrer);
+      const hostname = refUrl.hostname.toLowerCase().replace('www.', '');
+      
+      // Map common domains to friendly names
+      if (hostname.includes('google')) referrerSource = 'Google';
+      else if (hostname.includes('facebook') || hostname.includes('fb.com')) referrerSource = 'Facebook';
+      else if (hostname.includes('instagram')) referrerSource = 'Instagram';
+      else if (hostname.includes('twitter') || hostname.includes('t.co')) referrerSource = 'X (formerly Twitter)';
+      else if (hostname.includes('linkedin')) referrerSource = 'LinkedIn';
+      else if (hostname.includes('reddit')) referrerSource = 'Reddit';
+      else if (hostname.includes('tiktok')) referrerSource = 'TikTok';
+      else if (hostname.includes('youtube')) referrerSource = 'YouTube';
+      else if (hostname.includes('pinterest')) referrerSource = 'Pinterest';
+      else if (hostname.includes('whatsapp')) referrerSource = 'WhatsApp';
+      else if (hostname.includes('telegram')) referrerSource = 'Telegram';
+      else if (hostname.includes('discord')) referrerSource = 'Discord';
+      else if (hostname.includes('slack')) referrerSource = 'Slack';
+      else referrerSource = hostname;
+    } catch (e) {
+      referrerSource = httpReferrer;
+    }
+  } else {
+    // Detect in-app browsers based on User-Agent
+    const ua = userAgent.toLowerCase();
+    
+    if (ua.includes('whatsapp')) referrerSource = 'WhatsApp';
+    else if (ua.includes('instagram')) referrerSource = 'Instagram';
+    else if (ua.includes('fbav') || ua.includes('fban') || ua.includes('fb_iab')) referrerSource = 'Facebook';
+    else if (ua.includes('twitter')) referrerSource = 'X (formerly Twitter)';
+    else if (ua.includes('linkedin')) referrerSource = 'LinkedIn';
+    else if (ua.includes('snapchat')) referrerSource = 'Snapchat';
+    else if (ua.includes('tiktok')) referrerSource = 'TikTok';
+    else if (ua.includes('telegram')) referrerSource = 'Telegram';
+    else if (ua.includes('line/')) referrerSource = 'LINE';
+    else if (ua.includes('kakaotalk')) referrerSource = 'KakaoTalk';
+    else if (ua.includes('wechat')) referrerSource = 'WeChat';
+    else referrerSource = 'Unknown';
+  }
+  
+  // Device detection
+  const isMobile = /mobile|android|iphone|ipad|ipod/i.test(userAgent);
+  const deviceType = isMobile ? 'Mobile' : 'Desktop';
+  
+  // Enhanced browser detection
+  let browser = 'Other';
+  const ua = userAgent.toLowerCase();
+  
+  // Check for in-app browsers first
+  if (ua.includes('instagram')) browser = 'Instagram App';
+  else if (ua.includes('whatsapp')) browser = 'WhatsApp';
+  else if (ua.includes('fb_iab') || ua.includes('fbav')) browser = 'Facebook App';
+  else if (ua.includes('twitter')) browser = 'Twitter App';
+  else if (ua.includes('linkedin')) browser = 'LinkedIn App';
+  // Regular browsers
+  else if (ua.includes('edg')) browser = 'Edge';
+  else if (ua.includes('chrome') && !ua.includes('edg')) browser = 'Chrome';
+  else if (ua.includes('safari') && !ua.includes('chrome')) browser = 'Safari';
+  else if (ua.includes('firefox')) browser = 'Firefox';
+  else if (ua.includes('opera') || ua.includes('opr')) browser = 'Opera';
+  
+  // Get client IP address
+  const clientIP = req.headers['x-forwarded-for']?.split(',')[0] || 
+                   req.headers['x-real-ip'] || 
+                   req.connection.remoteAddress || 
+                   'unknown';
+  
+  // Fetch geolocation data
+  let locationData = {
+    country: 'Unknown',
+    city: 'Unknown',
+    region: 'Unknown'
+  };
+  
+  try {
+    // Use ip-api.com for free geolocation (no API key required)
+    const geoResponse = await fetch(`http://ip-api.com/json/${clientIP}?fields=status,country,regionName,city`);
+    if (geoResponse.ok) {
+      const geoData = await geoResponse.json();
+      if (geoData.status === 'success') {
+        locationData = {
+          country: geoData.country || 'Unknown',
+          city: geoData.city || 'Unknown',
+          region: geoData.regionName || 'Unknown'
+        };
+      }
+    }
+  } catch (geoError) {
+    console.log('Geolocation lookup failed:', geoError.message);
+  }
+  
+  const clickData = {
+    timestamp: new Date().toISOString(),
+    device: deviceType,
+    browser,
+    referrer: referrerSource,
+    location: locationData
+  };
+
+  // Update analytics
+  try {
+    const analyticsRef = db.collection(COLLECTIONS.ANALYTICS).doc(shortCode);
+    const analyticsDoc = await analyticsRef.get();
+
+    if (analyticsDoc.exists) {
+      await analyticsRef.update({
+        clicks: admin.firestore.FieldValue.increment(1),
+        clickHistory: admin.firestore.FieldValue.arrayUnion(clickData),
+        [`devices.${deviceType}`]: admin.firestore.FieldValue.increment(1),
+        [`browsers.${browser}`]: admin.firestore.FieldValue.increment(1),
+        [`countries.${locationData.country}`]: admin.firestore.FieldValue.increment(1),
+        [`locations.${locationData.city}`]: admin.firestore.FieldValue.increment(1),
+        [`referrers.${referrerSource}`]: admin.firestore.FieldValue.increment(1)
+      });
+    }
+  } catch (error) {
+    console.error('Error updating analytics:', error);
+    
+    // Fallback to in-memory analytics
+    if (!analytics.has(shortCode)) {
+      analytics.set(shortCode, {
+        impressions: 0,
+        clicks: 0,
+        shares: 0,
+        clickHistory: [],
+        devices: {},
+        browsers: {},
+        countries: {},
+        locations: {},
+        referrers: {}
+      });
+    }
+    
+    const analyticsData = analytics.get(shortCode);
+    analyticsData.clicks++;
+    analyticsData.clickHistory.push(clickData);
+    analyticsData.devices[deviceType] = (analyticsData.devices[deviceType] || 0) + 1;
+    analyticsData.browsers[browser] = (analyticsData.browsers[browser] || 0) + 1;
+    analyticsData.countries[locationData.country] = (analyticsData.countries[locationData.country] || 0) + 1;
+    analyticsData.locations[locationData.city] = (analyticsData.locations[locationData.city] || 0) + 1;
+    analyticsData.referrers[referrerSource] = (analyticsData.referrers[referrerSource] || 0) + 1;
+  }
+
+  // Emit real-time analytics update via Socket.io
+  io.emit('analyticsUpdate', {
+    shortCode,
+    click: clickData
+  });
+
+  // Redirect to original URL
+  res.redirect(link.originalUrl);
 });
 
 // Redirect short link and track click

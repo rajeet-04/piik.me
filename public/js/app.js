@@ -640,9 +640,53 @@ async function handleLogout(e) {
 // MODAL FUNCTIONS
 // ================================
 
-function openCreateLinkModal() {
+let userBioSlug = null; // Store user's bio link slug
+
+async function openCreateLinkModal() {
     createLinkModal.classList.add('show');
     destinationUrl.focus();
+    
+    // Fetch user's bio link slug
+    try {
+        const user = firebase.auth().currentUser;
+        if (user) {
+            const db = firebase.firestore();
+            const bioLinksSnapshot = await db.collection('bioLinks')
+                .where('userId', '==', user.uid)
+                .limit(1)
+                .get();
+            
+            if (!bioLinksSnapshot.empty) {
+                const bioLink = bioLinksSnapshot.docs[0].data();
+                userBioSlug = bioLink.slug;
+                
+                // Update UI to show username prefix
+                const usernamePrefix = document.getElementById('usernamePrefix');
+                const customShortCodeInput = document.getElementById('customShortCode');
+                const customShortCodeHint = document.getElementById('customShortCodeHint');
+                
+                if (usernamePrefix && customShortCodeInput) {
+                    usernamePrefix.textContent = userBioSlug + '/';
+                    usernamePrefix.style.display = 'block';
+                    customShortCodeInput.style.paddingLeft = `${usernamePrefix.offsetWidth + 20}px`;
+                }
+                
+                if (customShortCodeHint) {
+                    customShortCodeHint.textContent = `Will create: piik.me/${userBioSlug}/your-custom-code (or piik.me/random if left empty)`;
+                }
+            } else {
+                // No bio link found
+                userBioSlug = null;
+                const customShortCodeHint = document.getElementById('customShortCodeHint');
+                if (customShortCodeHint) {
+                    customShortCodeHint.textContent = 'Create a bio link first to use custom username/slug format';
+                }
+            }
+        }
+    } catch (error) {
+        console.error('Error fetching bio link:', error);
+        userBioSlug = null;
+    }
 }
 
 function closeCreateLinkModal() {
@@ -661,6 +705,16 @@ function clearCreateLinkForm() {
     utmCampaign.value = '';
     utmTerm.value = '';
     utmContent.value = '';
+    
+    // Reset username prefix
+    const usernamePrefix = document.getElementById('usernamePrefix');
+    const customShortCodeInput = document.getElementById('customShortCode');
+    if (usernamePrefix) {
+        usernamePrefix.style.display = 'none';
+    }
+    if (customShortCodeInput) {
+        customShortCodeInput.style.paddingLeft = '12px';
+    }
 }
 
 // Validate custom short code availability
@@ -687,7 +741,14 @@ async function validateCustomShortCode(shortCode) {
     validateTimeout = setTimeout(async () => {
         try {
             const db = firebase.firestore();
-            const doc = await db.collection('links').doc(shortCode).get();
+            
+            // If user has a bio slug, check username/slug format
+            let docId = shortCode;
+            if (userBioSlug) {
+                docId = `${userBioSlug}/${shortCode}`;
+            }
+            
+            const doc = await db.collection('links').doc(docId).get();
             
             if (doc.exists) {
                 customShortCodeError.textContent = '✗ This short code is already taken';
@@ -743,7 +804,11 @@ async function handleCreateLink() {
         // Check if already taken
         try {
             const db = firebase.firestore();
-            const doc = await db.collection('links').doc(customCode).get();
+            let docId = customCode;
+            if (userBioSlug) {
+                docId = `${userBioSlug}/${customCode}`;
+            }
+            const doc = await db.collection('links').doc(docId).get();
             if (doc.exists) {
                 showToast('This short code is already taken', 'error');
                 return;
@@ -781,6 +846,7 @@ async function handleCreateLink() {
             body: JSON.stringify({
                 url,
                 customShortCode: customCode || null,
+                username: userBioSlug || null,
                 utmParams: Object.keys(utmParams).length > 0 ? utmParams : null
             })
         });
