@@ -931,9 +931,14 @@
                             <div class="card" style="padding: 20px;">
                                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
                                     <h3 style="margin: 0; font-size: 16px;">Live Preview</h3>
-                                    <button class="btn btn-sm btn-secondary" onclick="viewBioLinkPreview()" title="Open in new tab">
-                                        <i class="fas fa-external-link-alt"></i>
-                                    </button>
+                                    <div style="display: flex; gap: 8px;">
+                                        <button class="btn btn-sm btn-secondary" onclick="shareBioLink()" title="Share">
+                                            <i class="fas fa-share-alt"></i>
+                                        </button>
+                                        <button class="btn btn-sm btn-secondary" onclick="viewBioLinkPreview()" title="Open in new tab">
+                                            <i class="fas fa-external-link-alt"></i>
+                                        </button>
+                                    </div>
                                 </div>
                                 <div id="bioLinkPreview" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 16px; padding: 40px 24px; min-height: 500px;">
                                     <div style="background: rgba(255,255,255,0.95); border-radius: 16px; padding: 32px 24px; text-align: center;">
@@ -1405,6 +1410,63 @@
                 </form>
             </div>
         </section>
+    </div>
+
+    <!-- Share Bio Link Modal -->
+    <div class="modal" id="shareBioLinkModal" style="display: none;">
+        <div class="modal-overlay" id="shareBioLinkModalOverlay"></div>
+        <div class="modal-content" style="max-width: 500px;">
+            <div class="modal-header">
+                <h3>Share Your Bio Link</h3>
+                <button class="modal-close" onclick="closeShareBioLinkModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <!-- Bio Link URL -->
+                <div class="form-group">
+                    <label>Your Bio Link</label>
+                    <div style="display: flex; gap: 8px;">
+                        <input type="text" class="form-input" id="shareBioLinkUrl" readonly style="flex: 1;">
+                        <button class="btn btn-secondary" onclick="copyShareBioLink()" id="copyShareBtn">
+                            <i class="fas fa-copy"></i> Copy
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Share Options -->
+                <div style="margin-top: 24px;">
+                    <label style="display: block; margin-bottom: 12px; font-weight: 600;">Share to:</label>
+                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px;">
+                        <button class="btn btn-secondary" onclick="shareToWhatsApp()" style="justify-content: flex-start;">
+                            <i class="fab fa-whatsapp" style="color: #25D366;"></i> WhatsApp
+                        </button>
+                        <button class="btn btn-secondary" onclick="shareToTelegram()" style="justify-content: flex-start;">
+                            <i class="fab fa-telegram" style="color: #0088cc;"></i> Telegram
+                        </button>
+                        <button class="btn btn-secondary" onclick="shareToTwitter()" style="justify-content: flex-start;">
+                            <i class="fab fa-twitter" style="color: #1DA1F2;"></i> Twitter
+                        </button>
+                        <button class="btn btn-secondary" onclick="shareToFacebook()" style="justify-content: flex-start;">
+                            <i class="fab fa-facebook" style="color: #1877F2;"></i> Facebook
+                        </button>
+                        <button class="btn btn-secondary" onclick="shareToLinkedIn()" style="justify-content: flex-start;">
+                            <i class="fab fa-linkedin" style="color: #0A66C2;"></i> LinkedIn
+                        </button>
+                        <button class="btn btn-secondary" onclick="shareToEmail()" style="justify-content: flex-start;">
+                            <i class="fas fa-envelope" style="color: #EA4335;"></i> Email
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Native Share (for mobile) -->
+                <div id="nativeShareBtn" style="margin-top: 16px; display: none;">
+                    <button class="btn btn-primary" onclick="nativeShare()" style="width: 100%;">
+                        <i class="fas fa-share-alt"></i> More Sharing Options
+                    </button>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- Login Modal (shown when user clicks login) -->
