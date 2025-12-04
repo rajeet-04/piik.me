@@ -748,8 +748,8 @@ function renderEditorBioLinkItems() {
     }
     
     container.innerHTML = editorBioLinkItems.map((item, index) => `
-        <div class="bio-link-item" style="display: flex; gap: 12px; padding: 16px; background: #f9fafb; border-radius: 8px; border: 1px solid #e5e7eb;">
-            <div class="bio-link-item-handle" style="cursor: move; color: #9ca3af; display: flex; align-items: center;">
+        <div class="bio-link-item" draggable="true" data-index="${index}" style="display: flex; gap: 12px; padding: 16px; background: #f9fafb; border-radius: 8px; border: 1px solid #e5e7eb; cursor: move; transition: all 0.2s ease;">
+            <div class="bio-link-item-handle" style="cursor: grab; color: #9ca3af; display: flex; align-items: center;">
                 <i class="fas fa-grip-vertical"></i>
             </div>
             <div class="bio-link-item-content" style="flex: 1; display: grid; gap: 8px;">
@@ -764,7 +764,78 @@ function renderEditorBioLinkItems() {
         </div>
     `).join('');
     
+    // Setup drag and drop
+    setupDragAndDrop();
     updateLivePreview();
+}
+
+// Setup drag and drop for bio link items
+function setupDragAndDrop() {
+    const container = document.getElementById('editorBioLinkItems');
+    if (!container) return;
+    
+    const items = container.querySelectorAll('.bio-link-item');
+    let draggedItem = null;
+    let draggedIndex = null;
+    
+    items.forEach(item => {
+        item.addEventListener('dragstart', (e) => {
+            draggedItem = item;
+            draggedIndex = parseInt(item.getAttribute('data-index'));
+            item.style.opacity = '0.5';
+            e.dataTransfer.effectAllowed = 'move';
+        });
+        
+        item.addEventListener('dragend', (e) => {
+            item.style.opacity = '1';
+            draggedItem = null;
+            draggedIndex = null;
+        });
+        
+        item.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+            
+            if (draggedItem && draggedItem !== item) {
+                const rect = item.getBoundingClientRect();
+                const midpoint = rect.top + rect.height / 2;
+                
+                if (e.clientY < midpoint) {
+                    item.style.borderTop = '2px solid #06b6d4';
+                    item.style.borderBottom = '';
+                } else {
+                    item.style.borderBottom = '2px solid #06b6d4';
+                    item.style.borderTop = '';
+                }
+            }
+        });
+        
+        item.addEventListener('dragleave', (e) => {
+            item.style.borderTop = '';
+            item.style.borderBottom = '';
+        });
+        
+        item.addEventListener('drop', (e) => {
+            e.preventDefault();
+            item.style.borderTop = '';
+            item.style.borderBottom = '';
+            
+            if (draggedItem && draggedItem !== item) {
+                const dropIndex = parseInt(item.getAttribute('data-index'));
+                
+                // Reorder the array
+                const draggedItemData = editorBioLinkItems[draggedIndex];
+                editorBioLinkItems.splice(draggedIndex, 1);
+                
+                // Recalculate the drop index after removal
+                const newDropIndex = draggedIndex < dropIndex ? dropIndex - 1 : dropIndex;
+                editorBioLinkItems.splice(newDropIndex, 0, draggedItemData);
+                
+                // Re-render
+                renderEditorBioLinkItems();
+            }
+        });
+    });
 }
 
 // Add editor bio link item
