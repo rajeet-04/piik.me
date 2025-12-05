@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🔗 Link360
+# 🔗 piik.me
 
 ### Open-Source Real-Time Link & QR Analytics Tracker
 
@@ -12,9 +12,7 @@
 **A professional-grade, open-source platform for creating trackable short links with real-time analytics and instant QR code generation just a little better than bitly.com**
 
 <p align="center">
-  <a href="https://github.com/xthxr/Link360">
-    <img src="public/assets/images/thumbnail.png" alt="Link360 — Hyper Analytics Platform for Links" width="1000" />
-  </a>
+  <a href="https://github.com/xthxr/piik.me"></a>
   <p align="center"><em>Cool Analytics Dashboard — Live, Real-time Metrics</em></p>
 </p>
 
