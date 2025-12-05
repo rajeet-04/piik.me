@@ -672,14 +672,14 @@ async function openCreateLinkModal() {
                 }
                 
                 if (customShortCodeHint) {
-                    customShortCodeHint.textContent = `Will create: piik.me/${userBioSlug}/your-custom-code (or piik.me/random if left empty)`;
+                    customShortCodeHint.textContent = `Custom links: piik.me/${userBioSlug}/your-code | Random links: piik.me/abc123X`;
                 }
             } else {
                 // No bio link found
                 userBioSlug = null;
                 const customShortCodeHint = document.getElementById('customShortCodeHint');
                 if (customShortCodeHint) {
-                    customShortCodeHint.textContent = 'Create a bio link first to use custom username/slug format';
+                    customShortCodeHint.textContent = 'Custom links: piik.me/your-code | Random links: piik.me/abc123X';
                 }
             }
         }
@@ -737,6 +737,11 @@ async function validateCustomShortCode(shortCode) {
         return false;
     }
     
+    // Clear error immediately when validation passes basic checks
+    customShortCodeError.style.display = 'none';
+    customShortCodeSuccess.textContent = '⏳ Checking availability...';
+    customShortCodeSuccess.style.display = 'block';
+    
     // Check availability with debounce
     validateTimeout = setTimeout(async () => {
         try {
@@ -757,14 +762,16 @@ async function validateCustomShortCode(shortCode) {
                 return false;
             } else {
                 customShortCodeError.style.display = 'none';
+                customShortCodeSuccess.textContent = '✓ Short code is available!';
                 customShortCodeSuccess.style.display = 'block';
                 return true;
             }
         } catch (error) {
             console.error('Error checking availability:', error);
+            customShortCodeSuccess.textContent = '✓ Short code is available!';
             return true; // Allow if check fails
         }
-    }, 500);
+    }, 300);
 }
 
 // ================================
