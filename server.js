@@ -487,11 +487,6 @@ app.get(['/home', '/analytics', '/profile', '/qr-generator', '/bio-link'], (req,
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// Bio link route
-app.get('/bio/:slug', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'bio.html'));
-});
-
 // Track impression without redirect (for link previews - HEAD request)
 app.head('/:shortCode', async (req, res) => {
   const { shortCode } = req.params;
@@ -706,10 +701,22 @@ app.get('/:username/:slug', async (req, res) => {
   res.redirect(link.originalUrl);
 });
 
-// Redirect short link and track click
+// Redirect short link and track click (also handles bio links)
 app.get('/:shortCode', async (req, res) => {
   const { shortCode } = req.params;
   
+  // First check if it's a bio link
+  try {
+    const bioLinkDoc = await db.collection('bioLinks').where('slug', '==', shortCode).limit(1).get();
+    if (!bioLinkDoc.empty) {
+      // It's a bio link, serve bio.html
+      return res.sendFile(path.join(__dirname, 'public', 'bio.html'));
+    }
+  } catch (error) {
+    console.error('Error checking bio link:', error);
+  }
+  
+  // Not a bio link, try as regular short link
   let link = null;
   
   try {

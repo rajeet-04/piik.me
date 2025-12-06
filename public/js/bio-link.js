@@ -350,7 +350,7 @@ async function saveBioLink() {
 
 // Copy bio link to clipboard
 function copyBioLink(slug) {
-    const url = `${window.location.origin}/bio/${slug}`;
+    const url = `${window.location.origin}/${slug}`;
     navigator.clipboard.writeText(url).then(() => {
         showToast('Link copied to clipboard!', 'success');
     }).catch(err => {
@@ -361,7 +361,7 @@ function copyBioLink(slug) {
 
 // View bio link in new tab
 function viewBioLink(slug) {
-    window.open(`/bio/${slug}`, '_blank');
+    window.open(`/${slug}`, '_blank');
 }
 
 // Edit bio link
@@ -1194,7 +1194,7 @@ function shareBioLink() {
         return;
     }
 
-    const url = `${window.location.origin}/bio/${slug}`;
+    const url = `${window.location.origin}/${slug}`;
     document.getElementById('shareBioLinkUrl').value = url;
     
     // Show native share button on mobile
