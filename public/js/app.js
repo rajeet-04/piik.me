@@ -941,8 +941,20 @@ function displayLinks(links, filter) {
     
     const linksHTML = links.map(link => {
         const isInactive = link.isActive === false;
-        const daysRemaining = link.scheduledDeletion ? 
-            Math.ceil((link.scheduledDeletion.toDate() - new Date()) / (1000 * 60 * 60 * 24)) : null;
+        
+        // Handle scheduledDeletion date - could be Firestore Timestamp or server timestamp object
+        let daysRemaining = null;
+        if (link.scheduledDeletion) {
+            let deletionDate;
+            if (typeof link.scheduledDeletion.toDate === 'function') {
+                deletionDate = link.scheduledDeletion.toDate();
+            } else if (link.scheduledDeletion._seconds) {
+                deletionDate = new Date(link.scheduledDeletion._seconds * 1000);
+            } else {
+                deletionDate = new Date(link.scheduledDeletion);
+            }
+            daysRemaining = Math.ceil((deletionDate - new Date()) / (1000 * 60 * 60 * 24));
+        }
         
         return `
         <div class="link-card ${isInactive ? 'inactive-link' : ''}" data-link-id="${link.shortCode}">
