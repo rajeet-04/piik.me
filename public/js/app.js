@@ -485,12 +485,9 @@ async function handleGoogleLogin() {
 }
 
 async function initializeAuth() {
-    // Check if user is authenticated
-    const token = await getAuthToken();
-    
-    if (token) {
-        try {
-            const user = await getCurrentUser();
+    // Listen to auth state changes
+    if (typeof firebase !== 'undefined' && firebase.auth) {
+        firebase.auth().onAuthStateChanged(async (user) => {
             if (user) {
                 currentUser = user;
                 showAuthenticatedUI();
@@ -524,25 +521,19 @@ async function initializeAuth() {
                     }, 100);
                 }
             } else {
-                showLoginModal();
+                currentUser = null;
+                showLandingPage();
             }
-        } catch (error) {
-            console.error('Auth error:', error);
-            showLandingPage();
-        }
-    } else {
-        showLandingPage();
-    }
-    
-    // Handle redirect result
-    if (typeof firebase !== 'undefined' && firebase.auth) {
+        });
+        
+        // Handle redirect result
         firebase.auth().getRedirectResult().then((result) => {
             if (result.user) {
                 console.log('Signed in via redirect:', result.user.displayName);
                 showToast('Welcome ' + result.user.displayName + '!', 'success');
                 
                 // Close login modal and restore page
-                loginModal.style.display = 'none';
+                if (loginModal) loginModal.style.display = 'none';
                 const currentPath = window.location.pathname;
                 const currentPageFromUrl = currentPath.substring(1) || 'home';
                 navigateToPage(currentPageFromUrl);
@@ -551,24 +542,21 @@ async function initializeAuth() {
             console.error('Redirect error:', error);
             showToast('Error signing in: ' + error.message, 'error');
         });
+    } else {
+        showLandingPage();
     }
 }
 
 async function getAuthToken() {
-    return new Promise((resolve) => {
-        if (typeof firebase !== 'undefined' && firebase.auth) {
-            firebase.auth().onAuthStateChanged(async (user) => {
-                if (user) {
-                    const token = await user.getIdToken();
-                    resolve(token);
-                } else {
-                    resolve(null);
-                }
-            });
-        } else {
-            resolve(null);
+    if (currentUser) {
+        try {
+            return await currentUser.getIdToken();
+        } catch (error) {
+            console.error('Error getting auth token:', error);
+            return null;
         }
-    });
+    }
+    return null;
 }
 
 async function getCurrentUser() {

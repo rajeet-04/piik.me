@@ -202,7 +202,8 @@ app.post('/api/shorten', verifyToken, async (req, res) => {
     userEmail: req.user.email || '',
     createdAt: admin.firestore.FieldValue.serverTimestamp(),
     utmParams: parseUTMParams(finalUrl) || utmParams || {},
-    isCustom: !!customShortCode
+    isCustom: !!customShortCode,
+    isActive: true
   };
 
   const analyticsData = {
