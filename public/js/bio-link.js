@@ -606,6 +606,8 @@ async function importFromLinktree(username) {
         if (nextDataScript) {
             try {
                 const nextData = JSON.parse(nextDataScript.textContent);
+                console.log('Linktree Next.js data:', nextData); // Debug log
+                
                 const props = nextData?.props?.pageProps;
                 
                 if (props) {
@@ -617,10 +619,15 @@ async function importFromLinktree(username) {
                         if (props.account.profilePictureUrl) data.profilePicture = props.account.profilePictureUrl;
                     }
                     
-                    // Extract links
-                    if (props.links && Array.isArray(props.links)) {
-                        props.links.forEach(link => {
-                            if (link.url && link.title && link.type !== 'SOCIAL_LINK') {
+                    // Extract links - try multiple possible paths
+                    let links = props.links || props.account?.links || [];
+                    
+                    console.log('Found links:', links); // Debug log
+                    
+                    if (links && Array.isArray(links)) {
+                        links.forEach(link => {
+                            // Skip social links, only get regular links
+                            if (link.url && link.title && link.type !== 'SOCIAL_LINK' && link.type !== 'SOCIAL') {
                                 data.links.push({
                                     title: link.title,
                                     url: link.url
@@ -629,9 +636,13 @@ async function importFromLinktree(username) {
                         });
                     }
                     
-                    // Extract social links
-                    if (props.socialLinks && Array.isArray(props.socialLinks)) {
-                        props.socialLinks.forEach(social => {
+                    // Extract social links from multiple possible locations
+                    let socialLinks = props.socialLinks || props.account?.socialLinks || [];
+                    
+                    console.log('Found social links:', socialLinks); // Debug log
+                    
+                    if (socialLinks && Array.isArray(socialLinks)) {
+                        socialLinks.forEach(social => {
                             const url = social.url || '';
                             const platform = social.platform || social.type || '';
                             
@@ -658,9 +669,9 @@ async function importFromLinktree(username) {
                     }
                     
                     // Also check for links that might be social in the main links array
-                    if (props.links && Array.isArray(props.links)) {
-                        props.links.forEach(link => {
-                            if (link.type === 'SOCIAL_LINK' && link.url) {
+                    if (links && Array.isArray(links)) {
+                        links.forEach(link => {
+                            if ((link.type === 'SOCIAL_LINK' || link.type === 'SOCIAL') && link.url) {
                                 const url = link.url;
                                 if (url.includes('instagram.com') && !data.social.instagram) {
                                     const match = url.match(/instagram\.com\/([a-zA-Z0-9_.]+)/);
