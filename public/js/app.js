@@ -1040,16 +1040,11 @@ async function handleCreateLink() {
         
         if (data.success) {
             showToast('Link created successfully!', 'success');
-            console.log('Link created with shortCode:', data.shortCode);
             closeCreateLinkModal();
-            // Reload links immediately
-            console.log('Reloading links after creation...');
-            await loadLinks();
-            // Also reload after a short delay to ensure Firestore propagation
-            setTimeout(async () => {
-                console.log('Reloading links after delay...');
-                await loadLinks();
-            }, 1500);
+            // Reload links with increasing delays to handle Firestore latency
+            setTimeout(() => loadLinks(), 500);
+            setTimeout(() => loadLinks(), 1500);
+            setTimeout(() => loadLinks(), 3000);
         } else {
             showToast(data.error || 'Failed to create link', 'error');
         }

@@ -228,16 +228,17 @@ app.post('/api/shorten', verifyToken, async (req, res) => {
     // Save to Firestore
     console.log('Saving link to Firestore:', { shortCode, userId, linkData });
     await db.collection(COLLECTIONS.LINKS).doc(shortCode).set(linkData);
-    console.log('Link saved successfully to Firestore with shortCode:', shortCode);
+    console.log('Link saved successfully to Firestore');
     
     await db.collection(COLLECTIONS.ANALYTICS).doc(shortCode).set(analyticsData);
-    console.log('Analytics saved successfully');
+    console.log('Analytics saved successfully to Firestore');
     
-    // Verify the link was saved
+    // Verify the save by reading it back
     const verifyDoc = await db.collection(COLLECTIONS.LINKS).doc(shortCode).get();
-    console.log('Verification - Link exists in Firestore:', verifyDoc.exists);
     if (verifyDoc.exists) {
-      console.log('Verification - Saved data:', verifyDoc.data());
+      console.log('✅ Verified link exists in Firestore:', verifyDoc.data());
+    } else {
+      console.error('❌ Link was not found after save!');
     }
     
     res.json({
@@ -249,7 +250,6 @@ app.post('/api/shorten', verifyToken, async (req, res) => {
     });
   } catch (error) {
     console.error('Error saving to Firestore:', error);
-    console.error('Error details:', error.message, error.stack);
     
     // Fallback to in-memory storage
     links.set(shortCode, linkData);
@@ -459,6 +459,8 @@ app.get('/api/user/bio-slug', verifyToken, async (req, res) => {
 app.get('/api/user/links', verifyToken, async (req, res) => {
   const userId = req.user.uid;
   
+  console.log(`🔍 Fetching links for user: ${userId}`);
+  
   try {
     // Try with orderBy first
     let linksSnapshot;
@@ -467,18 +469,22 @@ app.get('/api/user/links', verifyToken, async (req, res) => {
         .where('userId', '==', userId)
         .orderBy('createdAt', 'desc')
         .get();
+      console.log(`Found ${linksSnapshot.docs.length} links with orderBy`);
     } catch (orderError) {
       // If orderBy fails (missing index), try without it
       console.log('OrderBy failed, trying without ordering:', orderError.message);
       linksSnapshot = await db.collection(COLLECTIONS.LINKS)
         .where('userId', '==', userId)
         .get();
+      console.log(`Found ${linksSnapshot.docs.length} links without orderBy`);
     }
     
     const userLinks = [];
     
     for (const doc of linksSnapshot.docs) {
       const linkData = doc.data();
+      console.log(`Processing link: ${doc.id}`, { shortCode: linkData.shortCode, isActive: linkData.isActive });
+      
       const analyticsDoc = await db.collection(COLLECTIONS.ANALYTICS).doc(linkData.shortCode).get();
       const analyticsData = analyticsDoc.exists ? analyticsDoc.data() : {
         impressions: 0,
@@ -501,7 +507,7 @@ app.get('/api/user/links', verifyToken, async (req, res) => {
       return dateB - dateA;
     });
     
-    console.log(`Returning ${userLinks.length} links for user ${userId}`);
+    console.log(`✅ Returning ${userLinks.length} links for user ${userId}`);
     res.json({ links: userLinks });
   } catch (error) {
     console.error('Error fetching user links:', error);
