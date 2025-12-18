@@ -62,6 +62,7 @@ const BioPage: NextPage<BioProps> = ({ body, scripts }) => (
       strategy="beforeInteractive"
     />
     <div
+      /* Static HTML sourced from repository assets (scripts stripped in extractStaticHtml) */
       dangerouslySetInnerHTML={{ __html: body }}
       suppressHydrationWarning
     />

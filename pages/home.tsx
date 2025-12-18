@@ -39,6 +39,7 @@ const HomePage: NextPage<HomeProps> = ({ body, scripts }) => (
     </Head>
     <div
       data-theme="dark"
+      /* Static HTML sourced from repository assets (scripts stripped in extractStaticHtml) */
       dangerouslySetInnerHTML={{ __html: body }}
       suppressHydrationWarning
     />
