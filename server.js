@@ -8,6 +8,7 @@ const admin = require('firebase-admin');
 require('dotenv').config();
 
 // Initialize Firebase Admin
+let db = null;
 try {
   admin.initializeApp({
     credential: admin.credential.cert({
@@ -16,13 +17,12 @@ try {
       privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n')
     })
   });
+  db = admin.firestore();
   console.log('✅ Firebase Admin initialized');
 } catch (error) {
   console.log('⚠️  Firebase Admin not configured. Using in-memory storage.');
   console.log('   See FIREBASE_SETUP.md for setup instructions.');
 }
-
-const db = admin.firestore();
 
 const app = express();
 const server = http.createServer(app);
@@ -49,6 +49,7 @@ function fromFirestoreId(firestoreId) {
 app.use(cors());
 app.use(express.json());
 app.use(express.static('public'));
+app.use('/_next', express.static('.next'));
 
 // Firestore Collections
 const COLLECTIONS = {
@@ -746,11 +747,12 @@ app.post('/api/import-profile', async (req, res) => {
 // This ensures all app routes (/home, /analytics, /profile) serve the index.html
 // Must be BEFORE the /:shortCode route to avoid conflicts
 app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'landing.html'));
+  res.sendFile(path.join(__dirname, '.next', 'server', 'pages', 'index.html'));
 });
 
 app.get(['/home', '/analytics', '/profile', '/qr-generator', '/bio-link', '/dashboard'], (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+  const page = req.path.slice(1); // Remove leading slash
+  res.sendFile(path.join(__dirname, '.next', 'server', 'pages', `${page}.html`));
 });
 
 // Track impression without redirect (for link previews - HEAD request)
@@ -980,7 +982,7 @@ app.get('/:shortCode', async (req, res) => {
     const bioLinkDoc = await db.collection('bioLinks').where('slug', '==', shortCode).limit(1).get();
     if (!bioLinkDoc.empty) {
       // It's a bio link, serve bio.html
-      return res.sendFile(path.join(__dirname, 'public', 'bio.html'));
+      return res.sendFile(path.join(__dirname, '.next', 'server', 'pages', 'bio.html'));
     }
   } catch (error) {
     console.error('Error checking bio link:', error);

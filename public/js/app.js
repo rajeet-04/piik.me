@@ -606,6 +606,15 @@ async function loadUserProfile() {
             userProfile = data.profile;
             userBioSlug = userProfile.username; // Set for backward compatibility
             console.log('User profile loaded:', userProfile);
+
+            // Show bio page link if user has username
+            if (userProfile.username) {
+                const bioPageLink = document.getElementById('bioPageLink');
+                if (bioPageLink) {
+                    bioPageLink.href = `/${userProfile.username}`;
+                    bioPageLink.style.display = 'block';
+                }
+            }
         }
     } catch (error) {
         console.error('Error loading user profile:', error);
