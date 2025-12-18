@@ -19,6 +19,12 @@ function debounceAnalyticsUpdate(callback, delay = 300) {
     analyticsUpdateTimeout = setTimeout(callback, delay);
 }
 
+// Helper function to convert shortCode to Firestore-safe document ID
+// Firestore document IDs cannot contain '/' so we replace with '_'
+function toFirestoreId(shortCode) {
+    return shortCode.replace(/\//g, '_');
+}
+
 // DOM Elements
 const sidebar = document.getElementById('sidebar');
 const mobileMenuBtn = document.getElementById('mobileMenuBtn');
@@ -1914,7 +1920,9 @@ async function loadAnalyticsData(linkFilter) {
             const shortCode = linkData.shortCode;
             
             // Get analytics document for this link (single document per link)
-            const analyticsDoc = await db.collection('analytics').doc(shortCode).get();
+            // Use toFirestoreId to handle shortCodes with slashes (e.g., username/slug)
+            const firestoreId = toFirestoreId(shortCode);
+            const analyticsDoc = await db.collection('analytics').doc(firestoreId).get();
             
             if (analyticsDoc.exists) {
                 const analytics = analyticsDoc.data();
@@ -2403,7 +2411,9 @@ async function loadDetailedGeographicData() {
             const linkData = linkDoc.data();
             const shortCode = linkData.shortCode;
             
-            const analyticsDoc = await db.collection('analytics').doc(shortCode).get();
+            // Use toFirestoreId to handle shortCodes with slashes (e.g., username/slug)
+            const firestoreId = toFirestoreId(shortCode);
+            const analyticsDoc = await db.collection('analytics').doc(firestoreId).get();
             
             if (analyticsDoc.exists) {
                 const analytics = analyticsDoc.data();
