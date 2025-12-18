@@ -231,12 +231,13 @@ piik.me is built with modern, production-ready technologies:
 
 6. **Start the application**
    ```bash
-   npm start
+   npm run dev
    ```
    
-   For development with auto-reload:
+   For a production build:
    ```bash
-   npm run dev
+   npm run build
+   npm start
    ```
 
 7. **Access the dashboard**
